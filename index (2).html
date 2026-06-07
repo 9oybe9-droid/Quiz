@@ -1,0 +1,1197 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuizMaster — Конструктор тестов</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0f0e0c;
+    --paper: #f5f2eb;
+    --cream: #ede9df;
+    --accent: #c8410b;
+    --accent2: #1a5c3a;
+    --gold: #b8912a;
+    --border: #d4cfc3;
+    --shadow: rgba(15,14,12,0.12);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+
+  /* ===== VIEWS ===== */
+  .view { display: none; min-height: 100vh; }
+  .view.active { display: block; }
+
+  /* ===== EDITOR VIEW ===== */
+  #editor-view {
+    display: none;
+    flex-direction: column;
+  }
+  #editor-view.active { display: flex; }
+
+  .editor-header {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 20px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 3px solid var(--accent);
+  }
+
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--accent); }
+
+  .editor-body {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    flex: 1;
+    gap: 0;
+  }
+
+  .editor-main {
+    padding: 36px 40px;
+    border-right: 2px solid var(--border);
+    overflow-y: auto;
+    max-height: calc(100vh - 73px);
+  }
+
+  .editor-sidebar {
+    padding: 28px 24px;
+    background: var(--cream);
+    overflow-y: auto;
+    max-height: calc(100vh - 73px);
+  }
+
+  .section-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #6b6455;
+    margin-bottom: 6px;
+    margin-top: 18px;
+  }
+  label:first-of-type { margin-top: 0; }
+
+  input[type="text"], textarea, select {
+    width: 100%;
+    padding: 11px 14px;
+    border: 2px solid var(--border);
+    background: white;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 15px;
+    color: var(--ink);
+    border-radius: 4px;
+    transition: border-color .2s;
+    outline: none;
+  }
+  input[type="text"]:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+  }
+  textarea { resize: vertical; min-height: 60px; }
+
+  /* Questions list */
+  .questions-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .q-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 700;
+  }
+
+  .btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 10px 20px;
+    border: 2px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all .18s;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .btn-primary:hover { background: #a33508; border-color: #a33508; }
+  .btn-secondary { background: transparent; color: var(--ink); border-color: var(--ink); }
+  .btn-secondary:hover { background: var(--ink); color: var(--paper); }
+  .btn-green { background: var(--accent2); color: white; border-color: var(--accent2); }
+  .btn-green:hover { background: #134d30; }
+  .btn-ghost { background: transparent; color: #999; border-color: var(--border); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-danger { background: transparent; color: #c0392b; border-color: #c0392b; }
+  .btn-danger:hover { background: #c0392b; color: white; }
+  .btn-sm { padding: 6px 12px; font-size: 10px; }
+
+  .question-card {
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 16px;
+    position: relative;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .question-card:hover { border-color: #bbb8b0; box-shadow: 0 4px 16px var(--shadow); }
+  .question-card.expanded { border-color: var(--accent); }
+
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    cursor: pointer;
+  }
+
+  .q-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 3px 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .q-preview {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--ink);
+  }
+  .q-preview.placeholder { color: #aaa; font-style: italic; font-weight: 400; }
+
+  .card-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+
+  .card-body { margin-top: 16px; display: none; }
+  .card-body.open { display: block; }
+
+  .options-list { margin-top: 12px; }
+  .option-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .option-row input[type="text"] { flex: 1; padding: 8px 12px; font-size: 14px; }
+  .correct-radio {
+    appearance: none;
+    width: 20px; height: 20px;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    cursor: pointer;
+    flex-shrink: 0;
+    position: relative;
+    transition: border-color .2s;
+  }
+  .correct-radio:checked {
+    border-color: var(--accent2);
+    background: var(--accent2);
+  }
+  .correct-radio:checked::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: white;
+  }
+  .correct-radio-multi {
+    appearance: none;
+    width: 20px; height: 20px;
+    border: 2px solid var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    flex-shrink: 0;
+    position: relative;
+    transition: border-color .2s;
+  }
+  .correct-radio-multi:checked {
+    border-color: var(--accent2);
+    background: var(--accent2);
+  }
+  .correct-radio-multi:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    color: white;
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .option-hint { font-size: 11px; color: #999; width: 52px; text-align: center; flex-shrink: 0; }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 40px;
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    color: #aaa;
+  }
+  .empty-state h3 { font-family: 'Playfair Display', serif; font-size: 24px; margin-bottom: 10px; color: #ccc; }
+
+  /* Sidebar */
+  .meta-field { margin-bottom: 16px; }
+  .meta-field input, .meta-field textarea, .meta-field select { margin-top: 4px; }
+
+  .timer-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .timer-row input { width: 80px; }
+
+  .share-box {
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+    margin-top: 16px;
+    display: none;
+  }
+  .share-box.visible { display: block; }
+  .share-url {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    word-break: break-all;
+    color: var(--accent2);
+    background: var(--cream);
+    padding: 10px;
+    border-radius: 4px;
+    margin: 10px 0;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    line-height: 1.5;
+  }
+  .share-url:hover { background: #dff0e8; }
+
+  .copied-toast {
+    display: none;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--accent2);
+    font-weight: 600;
+    text-align: center;
+    margin-top: 6px;
+  }
+
+  .stats-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .stat-box {
+    flex: 1;
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    padding: 12px 8px;
+    text-align: center;
+  }
+  .stat-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .stat-label { font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+
+  /* ===== TAKE VIEW ===== */
+  #take-view {
+    background: var(--ink);
+    color: var(--paper);
+    min-height: 100vh;
+    display: none;
+    flex-direction: column;
+  }
+  #take-view.active { display: flex; }
+
+  .take-header {
+    padding: 24px 40px;
+    border-bottom: 2px solid #2a2820;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: var(--ink);
+    z-index: 10;
+  }
+
+  .take-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 700;
+  }
+  .take-subtitle { font-size: 13px; color: #888; margin-top: 2px; }
+
+  .timer-display {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--gold);
+    display: none;
+    transition: color .3s;
+  }
+  .timer-display.urgent { color: var(--accent); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+  .progress-bar-wrap {
+    height: 3px;
+    background: #2a2820;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width .3s;
+  }
+
+  .take-body {
+    flex: 1;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 48px 24px;
+    width: 100%;
+  }
+
+  .question-block {
+    display: none;
+    animation: fadeIn .3s ease;
+  }
+  .question-block.active { display: block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+
+  .q-counter {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 16px;
+    letter-spacing: 1px;
+  }
+
+  .q-text {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.35;
+    margin-bottom: 32px;
+    color: var(--paper);
+  }
+
+  .option-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    border: 2px solid #2a2820;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color .18s, background .18s;
+    user-select: none;
+  }
+  .option-item:hover { border-color: #4a4840; background: #1a1916; }
+  .option-item.selected { border-color: var(--gold); background: #1e1a0e; }
+  .option-item.correct-reveal { border-color: var(--accent2) !important; background: #0a1f14 !important; }
+  .option-item.wrong-reveal { border-color: var(--accent) !important; background: #1f0a06 !important; }
+
+  .opt-letter {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+    width: 22px;
+    flex-shrink: 0;
+  }
+  .option-item.selected .opt-letter { color: var(--gold); }
+  .option-item.correct-reveal .opt-letter { color: var(--accent2); }
+  .option-item.wrong-reveal .opt-letter { color: var(--accent); }
+
+  .opt-text { font-size: 16px; line-height: 1.4; }
+
+  .opt-check {
+    margin-left: auto;
+    font-size: 16px;
+    display: none;
+    flex-shrink: 0;
+  }
+  .option-item.correct-reveal .opt-check { display: block; color: var(--accent2); }
+  .option-item.wrong-reveal .opt-check { display: block; color: var(--accent); }
+
+  .nav-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 36px;
+    gap: 16px;
+  }
+
+  .take-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 14px 28px;
+    border: 2px solid;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all .18s;
+  }
+  .take-btn-next { background: var(--accent); color: white; border-color: var(--accent); }
+  .take-btn-next:hover { background: #a33508; }
+  .take-btn-next:disabled { opacity: .3; cursor: not-allowed; }
+  .take-btn-prev { background: transparent; color: #777; border-color: #333; }
+  .take-btn-prev:hover { border-color: #777; color: #ccc; }
+
+  /* Result screen */
+  #result-view {
+    display: none;
+    background: var(--ink);
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 40px;
+    text-align: center;
+  }
+  #result-view.active { display: flex; }
+
+  .result-score {
+    font-family: 'Playfair Display', serif;
+    font-size: 96px;
+    font-weight: 900;
+    color: var(--gold);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .result-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 40px;
+  }
+
+  .result-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 32px;
+    color: var(--paper);
+    margin-bottom: 8px;
+  }
+
+  .result-desc {
+    font-size: 16px;
+    color: #888;
+    max-width: 400px;
+    line-height: 1.6;
+  }
+
+  .result-badge {
+    margin-bottom: 24px;
+    font-size: 56px;
+  }
+
+  .already-done {
+    display: none;
+    min-height: 100vh;
+    background: var(--ink);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 40px;
+    text-align: center;
+    color: var(--paper);
+  }
+  .already-done.active { display: flex; }
+  .already-done h2 { font-family: 'Playfair Display', serif; font-size: 36px; margin-bottom: 12px; }
+  .already-done p { color: #888; font-size: 16px; max-width: 360px; line-height: 1.6; }
+
+  /* Home view */
+  #home-view {
+    min-height: 100vh;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: var(--paper);
+  }
+  #home-view.active { display: flex; }
+
+  .home-card {
+    max-width: 520px;
+    width: 100%;
+    padding: 48px;
+    background: white;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 12px 40px var(--shadow);
+    text-align: center;
+  }
+  .home-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 48px;
+    font-weight: 900;
+    margin-bottom: 8px;
+  }
+  .home-logo span { color: var(--accent); }
+  .home-sub { font-size: 15px; color: #999; margin-bottom: 36px; }
+  .home-card .btn { width: 100%; margin-bottom: 12px; padding: 15px; font-size: 13px; }
+
+  /* Loading */
+  .loading {
+    display: flex;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 2px;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .editor-body { grid-template-columns: 1fr; }
+    .editor-sidebar { border-top: 2px solid var(--border); max-height: none; }
+    .editor-header { padding: 16px 20px; }
+    .editor-main { padding: 20px; max-height: none; }
+    .take-header { padding: 16px 20px; }
+    .q-text { font-size: 20px; }
+    .result-score { font-size: 72px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<div id="home-view" class="view active">
+  <div class="home-card">
+    <div class="home-logo">Quiz<span>.</span></div>
+    <div class="home-sub">Конструктор тестов для учителей</div>
+    <button class="btn btn-primary" onclick="goEditor()">➕ Создать тест</button>
+    <button class="btn btn-secondary" onclick="loadExisting()">📂 Загрузить тест</button>
+    <input type="file" id="load-file-input" accept=".json" style="display:none" onchange="handleFileLoad(event)">
+  </div>
+</div>
+
+<!-- EDITOR -->
+<div id="editor-view" class="view">
+  <div class="editor-header">
+    <div class="logo">Quiz<span>.</span></div>
+    <div style="display:flex;gap:12px">
+      <button class="btn btn-ghost" onclick="goHome()" style="color:#aaa;border-color:#444">← Главная</button>
+      <button class="btn btn-secondary" onclick="exportTest()">💾 Экспорт .json</button>
+      <button class="btn btn-green" onclick="generateShareLink()">🔗 Генерировать ссылку</button>
+    </div>
+  </div>
+  <div class="editor-body">
+    <div class="editor-main">
+      <div class="questions-header">
+        <div class="q-title">Вопросы</div>
+        <button class="btn btn-primary" onclick="addQuestion()">+ Добавить вопрос</button>
+      </div>
+      <div id="questions-list">
+        <div class="empty-state">
+          <h3>Нет вопросов</h3>
+          <p>Нажмите «Добавить вопрос», чтобы начать</p>
+        </div>
+      </div>
+    </div>
+    <div class="editor-sidebar">
+      <div class="section-title">Настройки теста</div>
+      <div class="meta-field">
+        <label>Название теста</label>
+        <input type="text" id="test-title" placeholder="Напр.: Физика, тема 3" oninput="syncMeta()">
+      </div>
+      <div class="meta-field">
+        <label>Описание / инструкция</label>
+        <textarea id="test-desc" placeholder="Необязательно" rows="3" oninput="syncMeta()"></textarea>
+      </div>
+      <div class="meta-field">
+        <label>Тип ответа по умолчанию</label>
+        <select id="default-type" oninput="syncMeta()">
+          <option value="single">Один правильный</option>
+          <option value="multi">Несколько правильных</option>
+        </select>
+      </div>
+      <div class="meta-field">
+        <label>Таймер (минут, 0 = выкл.)</label>
+        <div class="timer-row">
+          <input type="number" id="timer-min" value="0" min="0" max="180" oninput="syncMeta()">
+          <span style="font-size:13px;color:#999">мин.</span>
+        </div>
+      </div>
+
+      <div style="margin-top:24px">
+        <div class="section-title">Статистика</div>
+        <div class="stats-row">
+          <div class="stat-box">
+            <div class="stat-num" id="stat-q">0</div>
+            <div class="stat-label">Вопросов</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-num" id="stat-o">0</div>
+            <div class="stat-label">Вариантов</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:24px">
+        <div class="section-title">Ссылка для учеников</div>
+        <div class="share-box" id="share-box">
+          <div style="font-size:12px;color:#999;margin-bottom:6px">Нажмите, чтобы скопировать:</div>
+          <div class="share-url" id="share-url" onclick="copyLink()"></div>
+          <div class="copied-toast" id="copied-toast">✓ Скопировано!</div>
+          <div style="font-size:11px;color:#aaa;margin-top:8px;line-height:1.5">Каждый ученик может пройти тест только один раз. Ссылка привязана к этому тесту.</div>
+        </div>
+        <div id="share-hint" style="font-size:12px;color:#aaa;line-height:1.6">
+          Нажмите «Генерировать ссылку», чтобы получить URL для учеников.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ALREADY DONE -->
+<div id="already-view" class="already-done view">
+  <div style="font-size:64px;margin-bottom:20px">🔒</div>
+  <h2>Тест уже пройден</h2>
+  <p>Вы уже прошли этот тест. Повторное прохождение недоступно.</p>
+  <p style="margin-top:16px;font-size:14px;color:#555;">Если вы считаете, что это ошибка — обратитесь к своему учителю.</p>
+</div>
+
+<!-- TAKE VIEW -->
+<div id="take-view" class="view">
+  <div class="take-header">
+    <div>
+      <div class="take-title" id="take-title">Тест</div>
+      <div class="take-subtitle" id="take-subtitle"></div>
+    </div>
+    <div class="timer-display" id="timer-display">00:00</div>
+  </div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+  </div>
+  <div class="take-body" id="take-body"></div>
+</div>
+
+<!-- RESULT VIEW -->
+<div id="result-view" class="view">
+  <div class="result-badge" id="result-badge">🎉</div>
+  <div class="result-score" id="result-score">0%</div>
+  <div class="result-label" id="result-label">правильных ответов</div>
+  <div class="result-title" id="result-title">Тест завершён</div>
+  <div class="result-desc" id="result-desc"></div>
+</div>
+
+<script>
+// ==================== STATE ====================
+let quiz = {
+  id: '',
+  title: '',
+  description: '',
+  defaultType: 'single',
+  timerMinutes: 0,
+  questions: []
+};
+
+let expandedCard = null;
+let currentQ = 0;
+let userAnswers = [];
+let timerInterval = null;
+let timerSecs = 0;
+
+// ==================== ROUTING ====================
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function goHome() {
+  showView('home-view');
+}
+
+function goEditor() {
+  quiz = { id: genId(), title: '', description: '', defaultType: 'single', timerMinutes: 0, questions: [] };
+  renderEditor();
+  showView('editor-view');
+}
+
+function goEditorWithQuiz(q) {
+  quiz = q;
+  renderEditor();
+  showView('editor-view');
+}
+
+// ==================== ID GEN ====================
+function genId() {
+  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+// ==================== EDITOR ====================
+function syncMeta() {
+  quiz.title = document.getElementById('test-title').value;
+  quiz.description = document.getElementById('test-desc').value;
+  quiz.defaultType = document.getElementById('default-type').value;
+  quiz.timerMinutes = parseInt(document.getElementById('timer-min').value) || 0;
+  updateStats();
+}
+
+function renderEditor() {
+  document.getElementById('test-title').value = quiz.title;
+  document.getElementById('test-desc').value = quiz.description;
+  document.getElementById('default-type').value = quiz.defaultType;
+  document.getElementById('timer-min').value = quiz.timerMinutes;
+  renderQuestions();
+  updateStats();
+}
+
+function renderQuestions() {
+  const list = document.getElementById('questions-list');
+  if (quiz.questions.length === 0) {
+    list.innerHTML = `<div class="empty-state"><h3>Нет вопросов</h3><p>Нажмите «Добавить вопрос», чтобы начать</p></div>`;
+    return;
+  }
+  list.innerHTML = quiz.questions.map((q, i) => buildCardHTML(q, i)).join('');
+  updateStats();
+}
+
+function buildCardHTML(q, i) {
+  const isExpanded = expandedCard === i;
+  const letters = 'АБВГДЕ';
+  const optionsHTML = q.options.map((opt, oi) => {
+    const inputType = q.type === 'multi' ? 'correct-radio-multi' : 'correct-radio';
+    const radioType = q.type === 'multi' ? 'checkbox' : 'radio';
+    const checked = q.type === 'multi'
+      ? (Array.isArray(q.correct) && q.correct.includes(oi) ? 'checked' : '')
+      : (q.correct === oi ? 'checked' : '');
+    return `
+      <div class="option-row">
+        <input type="${radioType}" class="${inputType}" name="correct-${i}" value="${oi}" ${checked}
+          onchange="setCorrect(${i},${oi},this)" title="Правильный ответ">
+        <span class="option-hint">${letters[oi] || oi+1}.</span>
+        <input type="text" placeholder="Вариант ${oi+1}" value="${esc(opt)}"
+          oninput="quiz.questions[${i}].options[${oi}]=this.value;updateCardPreview(${i})">
+        <button class="btn btn-ghost btn-sm" onclick="removeOption(${i},${oi})" style="flex-shrink:0">✕</button>
+      </div>`;
+  }).join('');
+
+  const preview = q.text ? q.text : null;
+
+  return `
+    <div class="question-card${isExpanded?' expanded':''}" id="qcard-${i}">
+      <div class="card-header" onclick="toggleCard(${i})">
+        <span class="q-num">${i+1}</span>
+        <span class="q-preview${preview?'':' placeholder'}">${esc(preview || 'Введите вопрос...')}</span>
+        <div class="card-actions" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost btn-sm" onclick="moveQ(${i},-1)" title="Вверх">↑</button>
+          <button class="btn btn-ghost btn-sm" onclick="moveQ(${i},1)" title="Вниз">↓</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteQ(${i})">🗑</button>
+        </div>
+      </div>
+      <div class="card-body${isExpanded?' open':''}" id="cbody-${i}">
+        <label style="margin-top:0">Текст вопроса</label>
+        <textarea oninput="quiz.questions[${i}].text=this.value;updateCardPreview(${i})"
+          placeholder="Введите вопрос...">${esc(q.text)}</textarea>
+
+        <label style="margin-top:14px">Тип</label>
+        <select onchange="changeType(${i},this.value)" style="margin-bottom:12px">
+          <option value="single"${q.type==='single'?' selected':''}>Один правильный</option>
+          <option value="multi"${q.type==='multi'?' selected':''}>Несколько правильных</option>
+        </select>
+
+        <label>Варианты ответа <small style="text-transform:none;font-size:10px;color:#aaa">(отметьте правильный)</small></label>
+        <div class="options-list" id="opts-${i}">${optionsHTML}</div>
+        <button class="btn btn-ghost btn-sm" onclick="addOption(${i})" style="margin-top:6px">+ Добавить вариант</button>
+      </div>
+    </div>`;
+}
+
+function esc(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toggleCard(i) {
+  expandedCard = (expandedCard === i) ? null : i;
+  renderQuestions();
+}
+
+function updateCardPreview(i) {
+  const el = document.querySelector(`#qcard-${i} .q-preview`);
+  if (!el) return;
+  const text = quiz.questions[i].text;
+  el.textContent = text || 'Введите вопрос...';
+  el.classList.toggle('placeholder', !text);
+}
+
+function addQuestion() {
+  const i = quiz.questions.length;
+  quiz.questions.push({
+    text: '',
+    type: quiz.defaultType,
+    options: ['', '', '', ''],
+    correct: quiz.defaultType === 'multi' ? [] : 0
+  });
+  expandedCard = i;
+  renderQuestions();
+  setTimeout(() => {
+    const card = document.getElementById(`qcard-${i}`);
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
+function deleteQ(i) {
+  if (!confirm('Удалить вопрос?')) return;
+  quiz.questions.splice(i, 1);
+  if (expandedCard === i) expandedCard = null;
+  else if (expandedCard > i) expandedCard--;
+  renderQuestions();
+}
+
+function moveQ(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= quiz.questions.length) return;
+  [quiz.questions[i], quiz.questions[j]] = [quiz.questions[j], quiz.questions[i]];
+  if (expandedCard === i) expandedCard = j;
+  else if (expandedCard === j) expandedCard = i;
+  renderQuestions();
+}
+
+function addOption(i) {
+  if (quiz.questions[i].options.length >= 6) return;
+  quiz.questions[i].options.push('');
+  renderQuestions();
+  expandedCard = i;
+  renderQuestions();
+}
+
+function removeOption(i, oi) {
+  if (quiz.questions[i].options.length <= 2) return;
+  quiz.questions[i].options.splice(oi, 1);
+  const q = quiz.questions[i];
+  if (q.type === 'single') {
+    if (q.correct >= oi) q.correct = Math.max(0, q.correct - 1);
+  } else {
+    q.correct = (q.correct || []).filter(c => c !== oi).map(c => c > oi ? c - 1 : c);
+  }
+  expandedCard = i;
+  renderQuestions();
+}
+
+function setCorrect(i, oi, el) {
+  const q = quiz.questions[i];
+  if (q.type === 'single') {
+    q.correct = oi;
+  } else {
+    if (!Array.isArray(q.correct)) q.correct = [];
+    if (el.checked) {
+      if (!q.correct.includes(oi)) q.correct.push(oi);
+    } else {
+      q.correct = q.correct.filter(c => c !== oi);
+    }
+  }
+}
+
+function changeType(i, type) {
+  const q = quiz.questions[i];
+  q.type = type;
+  q.correct = type === 'multi' ? [] : 0;
+  expandedCard = i;
+  renderQuestions();
+}
+
+function updateStats() {
+  document.getElementById('stat-q').textContent = quiz.questions.length;
+  const total = quiz.questions.reduce((s, q) => s + q.options.length, 0);
+  document.getElementById('stat-o').textContent = total;
+}
+
+// ==================== SHARE ====================
+function quizToBase64(obj) {
+  const json = JSON.stringify(obj);
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  bytes.forEach(b => binary += String.fromCharCode(b));
+  return btoa(binary);
+}
+
+function base64ToQuiz(str) {
+  // Fix URL-safe base64 and padding
+  str = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (str.length % 4) str += '=';
+  const binary = atob(str);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const json = new TextDecoder().decode(bytes);
+  return JSON.parse(json);
+}
+
+function generateShareLink() {
+  syncMeta();
+  if (!quiz.title.trim()) { alert('Введите название теста!'); return; }
+  if (quiz.questions.length === 0) { alert('Добавьте хотя бы один вопрос!'); return; }
+
+  const encoded = quizToBase64(quiz);
+  const base = location.href.split('?')[0];
+  const url = `${base}?quiz=${encoded}`;
+
+  document.getElementById('share-box').classList.add('visible');
+  document.getElementById('share-hint').style.display = 'none';
+  document.getElementById('share-url').textContent = url;
+  document.getElementById('share-box').scrollIntoView({ behavior: 'smooth' });
+}
+
+function copyLink() {
+  const url = document.getElementById('share-url').textContent;
+  navigator.clipboard.writeText(url).then(() => {
+    const toast = document.getElementById('copied-toast');
+    toast.style.display = 'block';
+    setTimeout(() => toast.style.display = 'none', 2000);
+  });
+}
+
+function exportTest() {
+  syncMeta();
+  const blob = new Blob([JSON.stringify(quiz, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (quiz.title || 'quiz') + '.json';
+  a.click();
+}
+
+function loadExisting() {
+  document.getElementById('load-file-input').click();
+}
+
+function handleFileLoad(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const q = JSON.parse(ev.target.result);
+      if (!q.questions) throw new Error('Неверный формат');
+      if (!q.id) q.id = genId();
+      goEditorWithQuiz(q);
+    } catch(err) {
+      alert('Ошибка: неверный файл теста');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ==================== TAKE QUIZ ====================
+function startTakeMode(quizData) {
+  // Check if already done
+  const key = 'quiz_done_' + quizData.id;
+  if (localStorage.getItem(key)) {
+    showView('already-view');
+    return;
+  }
+
+  quiz = quizData;
+  currentQ = 0;
+  userAnswers = quiz.questions.map(q => q.type === 'multi' ? [] : null);
+
+  document.getElementById('take-title').textContent = quiz.title || 'Тест';
+  document.getElementById('take-subtitle').textContent = quiz.description || `${quiz.questions.length} вопросов`;
+
+  buildTakeBody();
+  showView('take-view');
+
+  if (quiz.timerMinutes > 0) {
+    timerSecs = quiz.timerMinutes * 60;
+    const disp = document.getElementById('timer-display');
+    disp.style.display = 'block';
+    updateTimerDisplay();
+    timerInterval = setInterval(() => {
+      timerSecs--;
+      updateTimerDisplay();
+      if (timerSecs <= 60) disp.classList.add('urgent');
+      if (timerSecs <= 0) { clearInterval(timerInterval); submitQuiz(); }
+    }, 1000);
+  }
+
+  renderCurrentQ();
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(timerSecs / 60);
+  const s = timerSecs % 60;
+  document.getElementById('timer-display').textContent =
+    String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+function buildTakeBody() {
+  const body = document.getElementById('take-body');
+  const letters = 'АБВГДЕ';
+  body.innerHTML = quiz.questions.map((q, qi) => `
+    <div class="question-block" id="qblock-${qi}">
+      <div class="q-counter">Вопрос ${qi+1} из ${quiz.questions.length}${q.type==='multi'?' · несколько правильных':''}</div>
+      <div class="q-text">${esc(q.text)}</div>
+      <div class="options-take">
+        ${q.options.map((opt, oi) => `
+          <div class="option-item" id="opt-${qi}-${oi}" onclick="selectOption(${qi},${oi})">
+            <span class="opt-letter">${letters[oi]||oi+1}</span>
+            <span class="opt-text">${esc(opt)}</span>
+            <span class="opt-check" id="optcheck-${qi}-${oi}"></span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="nav-row">
+        ${qi > 0 ? `<button class="take-btn take-btn-prev" onclick="prevQ()">← Назад</button>` : '<div></div>'}
+        ${qi < quiz.questions.length - 1
+          ? `<button class="take-btn take-btn-next" id="btn-next-${qi}" onclick="nextQ()">Далее →</button>`
+          : `<button class="take-btn take-btn-next" id="btn-next-${qi}" onclick="submitQuiz()">Завершить тест</button>`
+        }
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderCurrentQ() {
+  document.querySelectorAll('.question-block').forEach(b => b.classList.remove('active'));
+  const block = document.getElementById(`qblock-${currentQ}`);
+  if (block) block.classList.add('active');
+
+  const pct = ((currentQ + 1) / quiz.questions.length) * 100;
+  document.getElementById('progress-fill').style.width = pct + '%';
+
+  // Restore selections
+  const q = quiz.questions[currentQ];
+  const ans = userAnswers[currentQ];
+  q.options.forEach((_, oi) => {
+    const el = document.getElementById(`opt-${currentQ}-${oi}`);
+    if (!el) return;
+    const sel = q.type === 'multi' ? (ans && ans.includes(oi)) : (ans === oi);
+    el.classList.toggle('selected', !!sel);
+  });
+}
+
+function selectOption(qi, oi) {
+  const q = quiz.questions[qi];
+  if (q.type === 'single') {
+    userAnswers[qi] = oi;
+    q.options.forEach((_, i) => {
+      const el = document.getElementById(`opt-${qi}-${i}`);
+      if (el) el.classList.toggle('selected', i === oi);
+    });
+  } else {
+    if (!Array.isArray(userAnswers[qi])) userAnswers[qi] = [];
+    const arr = userAnswers[qi];
+    const idx = arr.indexOf(oi);
+    if (idx >= 0) arr.splice(idx, 1);
+    else arr.push(oi);
+    const el = document.getElementById(`opt-${qi}-${oi}`);
+    if (el) el.classList.toggle('selected', arr.includes(oi));
+  }
+}
+
+function nextQ() {
+  if (currentQ < quiz.questions.length - 1) {
+    currentQ++;
+    renderCurrentQ();
+    document.getElementById(`qblock-${currentQ}`).scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+function prevQ() {
+  if (currentQ > 0) {
+    currentQ--;
+    renderCurrentQ();
+  }
+}
+
+function submitQuiz() {
+  if (timerInterval) clearInterval(timerInterval);
+
+  // Mark as done
+  localStorage.setItem('quiz_done_' + quiz.id, '1');
+
+  // Calculate score
+  let correct = 0;
+  quiz.questions.forEach((q, i) => {
+    const ans = userAnswers[i];
+    if (q.type === 'single') {
+      if (ans === q.correct) correct++;
+    } else {
+      const corr = Array.isArray(q.correct) ? q.correct : [];
+      const given = Array.isArray(ans) ? ans : [];
+      if (corr.length === given.length && corr.every(c => given.includes(c))) correct++;
+    }
+  });
+
+  const pct = Math.round((correct / quiz.questions.length) * 100);
+  const badge = pct >= 90 ? '🏆' : pct >= 70 ? '🎉' : pct >= 50 ? '👍' : '📚';
+  const desc = pct >= 90 ? 'Отличный результат!' :
+               pct >= 70 ? 'Хороший результат!' :
+               pct >= 50 ? 'Есть куда расти' : 'Нужно повторить материал';
+
+  document.getElementById('result-badge').textContent = badge;
+  document.getElementById('result-score').textContent = pct + '%';
+  document.getElementById('result-label').textContent = `${correct} из ${quiz.questions.length} правильных`;
+  document.getElementById('result-title').textContent = quiz.title;
+  document.getElementById('result-desc').textContent = desc;
+
+  showView('result-view');
+}
+
+// ==================== INIT ====================
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(location.search);
+  const quizParam = params.get('quiz');
+  if (quizParam) {
+    try {
+      const data = base64ToQuiz(quizParam);
+      startTakeMode(data);
+    } catch(e) {
+      console.error('Quiz decode error:', e);
+      document.body.innerHTML = `<div style="min-height:100vh;background:#0f0e0c;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:sans-serif;color:#f5f2eb;text-align:center;padding:40px"><div style="font-size:56px;margin-bottom:20px">⚠️</div><h2 style="font-size:28px;margin-bottom:12px">Ошибка загрузки теста</h2><p style="color:#888;max-width:360px;line-height:1.6">Попробуйте получить ссылку заново от учителя.</p><p style="color:#555;font-size:12px;margin-top:16px">${e.message}</p></div>`;
+    }
+  } else {
+    showView('home-view');
+  }
+});
+</script>
+</body>
+</html>
